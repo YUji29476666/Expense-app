@@ -16,13 +16,11 @@ const BAND_COLOR_KEY = {
 } as const;
 
 export function AllowanceCard({
-  todayAllowanceMinor,
   remainingBudgetMinor,
   band,
   periodLabel,
   displayCurrency,
 }: {
-  todayAllowanceMinor: number;
   remainingBudgetMinor: number;
   band: AllowanceBand;
   periodLabel: string;
@@ -41,13 +39,10 @@ export function AllowanceCard({
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <ThemedText type="small" themeColor="textSecondary">
-        Today you can spend
+        This month you can spend
       </ThemedText>
       <ThemedText type="title" themeColor={BAND_COLOR_KEY[band]} style={styles.amount}>
-        {formatAmount(todayAllowanceMinor)}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        Budget left this period: {formatAmount(remainingBudgetMinor)}
+        {formatAmount(remainingBudgetMinor)}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         {periodLabel}
