@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 
 import { TransactionForm, type TransactionFormValues } from '@/components/transaction-form';
 import { Spacing } from '@/constants/theme';
@@ -27,8 +27,18 @@ export default function NewTransactionScreen() {
     if (!settings || !values.categoryId) {
       return;
     }
+    // rate_used is a snapshot frozen at entry time and never recalculated
+    // (SPEC.md 3.3), so a wrong rate saved here can never be repaired.
+    // Never substitute a placeholder like 1 — block the save instead.
+    if (settings.last_rate === null) {
+      Alert.alert(
+        'Exchange rate not set',
+        'Set the exchange rate in Settings first. Each transaction stores the rate used at entry time and never recalculates it, so a placeholder rate cannot be corrected later.'
+      );
+      return;
+    }
+    const rate = settings.last_rate;
     const amountMinor = toMinorUnits(parseFloat(values.amountMajorText), settings.display_currency);
-    const rate = settings.last_rate ?? 1;
     const homeMinor = convertMinor(amountMinor, settings.display_currency, settings.home_currency, rate);
 
     await insertTransaction(db, {

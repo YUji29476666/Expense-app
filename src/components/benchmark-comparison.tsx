@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
+import type { SupportedCurrency } from '@/constants/currencies';
 import { Spacing } from '@/constants/theme';
 import type { CategoryRow } from '@/db/types';
 import { compareSpendToBenchmark, getBenchmarkAmountMinor, type BenchmarkRegion } from '@/domain/benchmarks';
@@ -23,7 +24,7 @@ export function BenchmarkComparison({
   region: BenchmarkRegion | null;
   breakdown: CategoryBreakdownEntry[];
   categories: CategoryRow[];
-  displayCurrency: string;
+  displayCurrency: SupportedCurrency;
 }) {
   // The benchmark's currency must match what the user is spending in — we
   // never convert here, since that would introduce a rate not covered by

@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
+import type { SupportedCurrency } from '@/constants/currencies';
 import { useSettings } from '@/context/settings-context';
 import { useSQLiteContext } from '@/db/client';
 import { sumExpenseMinorInRange } from '@/db/queries/transactions';
@@ -14,7 +15,7 @@ export type TodaySummary = {
   todaySpendMinor: number;
   monthSpendSoFarMinor: number;
   band: AllowanceBand;
-  displayCurrency: string;
+  displayCurrency: SupportedCurrency;
   refresh: () => Promise<void>;
 };
 

@@ -25,10 +25,6 @@ describe('formatMinor', () => {
   it('formats JPY with no decimal places', () => {
     expect(formatMinor(1860, 'JPY')).toBe('¥1,860');
   });
-
-  it('falls back to the currency code for unknown currencies', () => {
-    expect(formatMinor(500, 'ZZZ')).toBe('ZZZ 5.00');
-  });
 });
 
 describe('formatDualCurrency', () => {
@@ -45,5 +41,18 @@ describe('convertMinor', () => {
 
   it('round-trips through minor units without drifting by a cent', () => {
     expect(convertMinor(100, 'USD', 'USD', 1)).toBe(100);
+  });
+});
+
+// Phase 1 supports exactly one exponent-2 currency (USD) and one exponent-0
+// currency (JPY). Exercise both directions so code that mishandles the
+// exponent change cannot hide behind a same-exponent pair.
+describe('convertMinor across differing exponents', () => {
+  it('USD -> JPY drops from exponent 2 to 0 (1240 cents -> 1860 yen, not 186000)', () => {
+    expect(convertMinor(1240, 'USD', 'JPY', 150)).toBe(1860);
+  });
+
+  it('JPY -> USD rises from exponent 0 to 2', () => {
+    expect(convertMinor(1860, 'JPY', 'USD', 1 / 150)).toBe(1240);
   });
 });
