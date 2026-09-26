@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSettings } from '@/context/settings-context';
 import { useSQLiteContext } from '@/db/client';
 import { getCategoryBreakdownForRange } from '@/db/queries/analytics';
-import { sumExpenseMinorInRange, sumIncomeMinorInRange } from '@/db/queries/transactions';
+import { sumByTypeInRange, sumExpenseMinorInRange, type TypeTotals } from '@/db/queries/transactions';
 import {
   formatISODate,
   formatPeriodShortLabel,
@@ -31,6 +31,11 @@ export type AnalyticsData = {
   trend: MonthlyTotal[];
   incomeMinor: number;
   expenseMinor: number;
+  // Same period in the home currency, at each transaction's rate_used.
+  incomeHomeMinor: number;
+  expenseHomeMinor: number;
+  // Display-currency totals across both types, for the average rate.
+  totals: TypeTotals;
 };
 
 const TREND_PERIODS = 6;
@@ -52,10 +57,9 @@ export function useAnalytics(): AnalyticsData {
       periods.unshift(getPreviousBudgetPeriod(periods[0], settings.month_start_day));
     }
 
-    const [breakdownRows, incomeMinor, expenseMinor, trendTotals] = await Promise.all([
+    const [breakdownRows, byType, trendTotals] = await Promise.all([
       getCategoryBreakdownForRange(db, formatISODate(currentPeriod.start), formatISODate(currentPeriod.end)),
-      sumIncomeMinorInRange(db, formatISODate(currentPeriod.start), formatISODate(currentPeriod.end)),
-      sumExpenseMinorInRange(db, formatISODate(currentPeriod.start), formatISODate(currentPeriod.end)),
+      sumByTypeInRange(db, formatISODate(currentPeriod.start), formatISODate(currentPeriod.end)),
       Promise.all(
         periods.map((period) => sumExpenseMinorInRange(db, formatISODate(period.start), formatISODate(period.end)))
       ),
@@ -69,8 +73,14 @@ export function useAnalytics(): AnalyticsData {
         label: formatPeriodShortLabel(period),
         totalMinor: trendTotals[index],
       })),
-      incomeMinor,
-      expenseMinor,
+      incomeMinor: byType.income.amountMinor,
+      expenseMinor: byType.expense.amountMinor,
+      incomeHomeMinor: byType.income.homeMinor,
+      expenseHomeMinor: byType.expense.homeMinor,
+      totals: {
+        amountMinor: byType.income.amountMinor + byType.expense.amountMinor,
+        homeMinor: byType.income.homeMinor + byType.expense.homeMinor,
+      },
     });
   }, [db, settings]);
 
@@ -91,5 +101,8 @@ export function useAnalytics(): AnalyticsData {
     trend: data?.trend ?? [],
     incomeMinor: data?.incomeMinor ?? 0,
     expenseMinor: data?.expenseMinor ?? 0,
+    incomeHomeMinor: data?.incomeHomeMinor ?? 0,
+    expenseHomeMinor: data?.expenseHomeMinor ?? 0,
+    totals: data?.totals ?? { amountMinor: 0, homeMinor: 0 },
   };
 }

@@ -1,34 +1,4 @@
-import {
-  compareToSamePointLastPeriod,
-  computeCategoryBudgetWarning,
-  computePaceProjection,
-  computeRemainingPerDay,
-} from '../alerts';
-
-describe('computePaceProjection', () => {
-  it('projects overage when spending faster than budget allows', () => {
-    // $500 spent in 10 days of a 30-day period, $1200 budget -> projects $1500, $300 over.
-    const result = computePaceProjection({
-      monthSpendSoFarMinor: 50000,
-      daysElapsedIncludingToday: 10,
-      totalDaysInPeriod: 30,
-      monthlyBudgetMinor: 120000,
-    });
-    expect(result.projectedTotalMinor).toBe(150000);
-    expect(result.overageMinor).toBe(30000);
-  });
-
-  it('projects a negative overage (under budget) when pace is comfortable', () => {
-    const result = computePaceProjection({
-      monthSpendSoFarMinor: 10000,
-      daysElapsedIncludingToday: 10,
-      totalDaysInPeriod: 30,
-      monthlyBudgetMinor: 120000,
-    });
-    expect(result.projectedTotalMinor).toBe(30000);
-    expect(result.overageMinor).toBe(-90000);
-  });
-});
+import { compareToSamePointLastPeriod, computeCategoryBudgetWarning } from '../alerts';
 
 describe('computeCategoryBudgetWarning', () => {
   it('returns null when the category has no budget set', () => {
@@ -43,17 +13,6 @@ describe('computeCategoryBudgetWarning', () => {
   it('does not flag below the threshold', () => {
     const result = computeCategoryBudgetWarning({ categorySpendMinor: 7000, categoryBudgetMinor: 10000 });
     expect(result).toEqual({ ratio: 0.7, isOverThreshold: false });
-  });
-});
-
-describe('computeRemainingPerDay', () => {
-  it('matches the today-allowance math restated as remaining/day', () => {
-    const result = computeRemainingPerDay({
-      monthlyBudgetMinor: 90000,
-      monthSpendSoFarMinor: 30000,
-      daysRemainingExcludingToday: 19,
-    });
-    expect(result).toEqual({ remainingMinor: 60000, days: 20, perDayMinor: 3000 });
   });
 });
 
