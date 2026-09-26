@@ -1,0 +1,8 @@
+# Supabase is used only to host the parse-receipt Edge Function (Gemini
+# proxy). No database, auth or storage (CLAUDE.md, SPEC.md 8).
+project_id = "vzfbpbvgdftylzwxebpj"
+
+[functions.parse-receipt]
+# Require the project's anon key in the Authorization header, so the
+# function is not callable with no credentials at all.
+verify_jwt = true
