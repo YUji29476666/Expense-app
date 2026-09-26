@@ -49,6 +49,7 @@ export default function TodayScreen() {
           <>
             <AllowanceCard
               todayAllowanceMinor={summary.todayAllowanceMinor}
+              remainingBudgetMinor={summary.remainingBudgetMinor}
               band={summary.band}
               periodLabel={summary.periodLabel}
               displayCurrency={summary.displayCurrency}

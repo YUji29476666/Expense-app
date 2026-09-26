@@ -23,3 +23,24 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { id: 'remittance_fees', name: 'Remittance/Fees', icon: '💸', color: '#EF6461', sortOrder: 10 },
   { id: 'other', name: 'Other', icon: '🔖', color: '#9AA5B1', sortOrder: 11 },
 ];
+
+// Income sources for students, added in schema v2. The entry form shows
+// these (plus Other) only when "Income" is selected, and hides them for
+// expenses.
+export const INCOME_CATEGORIES: DefaultCategory[] = [
+  { id: 'scholarship', name: 'Scholarship', icon: '🎓', color: '#3DA35D', sortOrder: 12 },
+  { id: 'part_time_job', name: 'Part-time job', icon: '💼', color: '#2E86AB', sortOrder: 13 },
+  { id: 'internship', name: 'Internship', icon: '🧑‍💻', color: '#A06CD5', sortOrder: 14 },
+];
+
+export const INCOME_CATEGORY_IDS: ReadonlySet<string> = new Set(INCOME_CATEGORIES.map((category) => category.id));
+
+// Shown for both types, so an income that fits no source can still be filed.
+export const SHARED_CATEGORY_ID = 'other';
+
+export function isCategoryForType(categoryId: string, type: 'expense' | 'income'): boolean {
+  if (categoryId === SHARED_CATEGORY_ID) {
+    return true;
+  }
+  return type === 'income' ? INCOME_CATEGORY_IDS.has(categoryId) : !INCOME_CATEGORY_IDS.has(categoryId);
+}

@@ -1,4 +1,4 @@
-import { DEFAULT_CATEGORIES } from '@/constants/categories';
+import { DEFAULT_CATEGORIES, INCOME_CATEGORIES } from '@/constants/categories';
 import {
   CREATE_CATEGORIES_TABLE,
   CREATE_SETTINGS_TABLE,
@@ -50,33 +50,47 @@ export async function migrateDbIfNeeded(db: MigratableDatabase): Promise<void> {
   }
 
   await db.withTransactionAsync(async () => {
-    await db.execAsync(CREATE_TRANSACTIONS_TABLE);
-    await db.execAsync(CREATE_TRANSACTIONS_OCCURRED_AT_INDEX);
-    await db.execAsync(CREATE_TRANSACTIONS_CATEGORY_INDEX);
-    await db.execAsync(CREATE_TRANSACTIONS_MERCHANT_INDEX);
-    await db.execAsync(CREATE_CATEGORIES_TABLE);
-    await db.execAsync(CREATE_SETTINGS_TABLE);
+    // v1: initial schema and seed data.
+    if (currentVersion < 1) {
+      await db.execAsync(CREATE_TRANSACTIONS_TABLE);
+      await db.execAsync(CREATE_TRANSACTIONS_OCCURRED_AT_INDEX);
+      await db.execAsync(CREATE_TRANSACTIONS_CATEGORY_INDEX);
+      await db.execAsync(CREATE_TRANSACTIONS_MERCHANT_INDEX);
+      await db.execAsync(CREATE_CATEGORIES_TABLE);
+      await db.execAsync(CREATE_SETTINGS_TABLE);
 
-    // OR IGNORE is defense in depth on top of the transaction fix above:
-    // it also makes a bare re-run (e.g. a future bug, or someone calling
-    // this twice by hand) a no-op instead of a crash.
-    for (const category of DEFAULT_CATEGORIES) {
+      // OR IGNORE is defense in depth on top of the transaction fix above:
+      // it also makes a bare re-run (e.g. a future bug, or someone calling
+      // this twice by hand) a no-op instead of a crash.
+      for (const category of DEFAULT_CATEGORIES) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO categories (id, name, icon, color, budget_minor, sort_order, is_archived) VALUES (?, ?, ?, ?, ?, ?, 0)',
+          [category.id, category.name, category.icon, category.color, null, category.sortOrder]
+        );
+      }
+
       await db.runAsync(
-        'INSERT OR IGNORE INTO categories (id, name, icon, color, budget_minor, sort_order, is_archived) VALUES (?, ?, ?, ?, ?, ?, 0)',
-        [category.id, category.name, category.icon, category.color, null, category.sortOrder]
+        `INSERT OR IGNORE INTO settings (id, display_currency, home_currency, monthly_budget_minor, month_start_day, region_code, last_rate, last_rate_at)
+         VALUES (1, ?, ?, ?, ?, NULL, NULL, NULL)`,
+        [
+          DEFAULT_SETTINGS.display_currency,
+          DEFAULT_SETTINGS.home_currency,
+          DEFAULT_SETTINGS.monthly_budget_minor,
+          DEFAULT_SETTINGS.month_start_day,
+        ]
       );
     }
 
-    await db.runAsync(
-      `INSERT OR IGNORE INTO settings (id, display_currency, home_currency, monthly_budget_minor, month_start_day, region_code, last_rate, last_rate_at)
-       VALUES (1, ?, ?, ?, ?, NULL, NULL, NULL)`,
-      [
-        DEFAULT_SETTINGS.display_currency,
-        DEFAULT_SETTINGS.home_currency,
-        DEFAULT_SETTINGS.monthly_budget_minor,
-        DEFAULT_SETTINGS.month_start_day,
-      ]
-    );
+    // v2: student income categories. Only these rows are inserted, so a
+    // default category the user deleted under v1 is not brought back.
+    if (currentVersion < 2) {
+      for (const category of INCOME_CATEGORIES) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO categories (id, name, icon, color, budget_minor, sort_order, is_archived) VALUES (?, ?, ?, ?, ?, ?, 0)',
+          [category.id, category.name, category.icon, category.color, null, category.sortOrder]
+        );
+      }
+    }
 
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   });

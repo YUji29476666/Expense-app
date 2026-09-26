@@ -26,7 +26,6 @@ export default function SettingsScreen() {
   const { settings, updateSettings, changeCurrencyPair } = useSettings();
   const [pairLocked, setPairLocked] = useState(true);
   const [isFetchingRate, setIsFetchingRate] = useState(false);
-  const [manualRateText, setManualRateText] = useState('');
   const [budgetText, setBudgetText] = useState('');
 
   // Lock the pair once any transaction exists. This only drives the UI;
@@ -77,15 +76,6 @@ export default function SettingsScreen() {
     }
   }
 
-  async function handleSaveManualRate() {
-    const parsed = parseFloat(manualRateText);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return;
-    }
-    await updateSettings({ last_rate: parsed, last_rate_at: new Date().toISOString() });
-    setManualRateText('');
-  }
-
   async function handleChangeCurrencyPair(pair: CurrencyPair) {
     const result = await changeCurrencyPair(pair);
     if (!result.ok) {
@@ -98,7 +88,7 @@ export default function SettingsScreen() {
     }
     Alert.alert(
       'Currency pair updated',
-      'Set the exchange rate and the monthly budget again before recording transactions.'
+      'Fetch the exchange rate and set the monthly budget again before recording transactions.'
     );
   }
 
@@ -153,18 +143,6 @@ export default function SettingsScreen() {
             <ThemedText type="smallBold">{isFetchingRate ? 'Fetching…' : 'Fetch latest rate'}</ThemedText>
           </ThemedView>
         </Pressable>
-        <View style={styles.inlineRow}>
-          <TextInput
-            style={styles.inlineInput}
-            keyboardType="decimal-pad"
-            placeholder="Enter rate manually"
-            value={manualRateText}
-            onChangeText={setManualRateText}
-          />
-          <Pressable onPress={handleSaveManualRate}>
-            <ThemedText type="smallBold">Set</ThemedText>
-          </Pressable>
-        </View>
       </Section>
 
       <Section title="Monthly budget">
