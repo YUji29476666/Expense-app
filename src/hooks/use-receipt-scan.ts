@@ -53,6 +53,7 @@ export function useReceiptScan(categories: CategoryRow[]) {
     const asset = picked.assets[0];
 
     setIsScanning(true);
+    let base64: string;
     try {
       // Always re-encode as JPEG: shrinks the upload and turns HEIC/PNG
       // screenshots into a format the function accepts.
@@ -64,18 +65,22 @@ export function useReceiptScan(categories: CategoryRow[]) {
       const rendered = await context.renderAsync();
       const saved = await rendered.saveAsync({ base64: true, compress: RECEIPT_JPEG_QUALITY, format: SaveFormat.JPEG });
       if (!saved.base64) {
-        return { status: 'done', result: { ok: false, error: 'invalid_request' } };
+        throw new Error('no base64 from saveAsync');
       }
+      base64 = saved.base64;
+    } catch {
+      setIsScanning(false);
+      return { status: 'done', result: { ok: false, error: 'image_error' } };
+    }
 
+    try {
       const result = await parseReceiptImage({
-        imageBase64: saved.base64,
+        imageBase64: base64,
         mimeType: 'image/jpeg',
         today: formatISODate(new Date()),
         categories: toCategoryOptions(categories),
       });
       return { status: 'done', result };
-    } catch {
-      return { status: 'done', result: { ok: false, error: 'invalid_request' } };
     } finally {
       setIsScanning(false);
     }

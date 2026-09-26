@@ -40,7 +40,12 @@ export default function NewTransactionScreen() {
       return;
     }
     if (!outcome.result.ok) {
-      Alert.alert('Could not read the image', describeReceiptApiError(outcome.result.error));
+      const { error, status } = outcome.result;
+      // The code line makes a failure report actionable.
+      Alert.alert(
+        'Could not read the image',
+        `${describeReceiptApiError(error)}\n\n(code: ${error}${status ? `, HTTP ${status}` : ''})`
+      );
       return;
     }
     // Step 5 check only: the confirmation screen (Step 7) will prefill the

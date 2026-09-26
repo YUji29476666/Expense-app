@@ -17,9 +17,20 @@ export type { CategoryOption, ParsedReceipt };
 
 const REQUEST_TIMEOUT_MS = 35_000;
 
-export type ReceiptApiError = ParseReceiptError | 'not_configured' | 'network_error';
+export type ReceiptApiError =
+  | ParseReceiptError
+  | 'not_configured'
+  | 'network_error'
+  // Supabase gateway answers, before the function runs.
+  | 'function_not_found'
+  | 'unauthorized'
+  // The picked image could not be re-encoded on the device.
+  | 'image_error';
 
-export type ReceiptApiResult = { ok: true; receipt: ParsedReceipt } | { ok: false; error: ReceiptApiError };
+// `status` is the HTTP status when a response arrived, for diagnosis.
+export type ReceiptApiResult =
+  | { ok: true; receipt: ParsedReceipt }
+  | { ok: false; error: ReceiptApiError; status?: number };
 
 function getConfig(): { url: string; anonKey: string } | null {
   const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -59,15 +70,28 @@ export async function parseReceiptImage(request: ParseReceiptRequest): Promise<R
     });
     const body: unknown = await response.json().catch(() => null);
     if (isParseReceiptResponse(body)) {
-      return body.ok ? { ok: true, receipt: body.receipt } : { ok: false, error: body.error };
+      return body.ok ? { ok: true, receipt: body.receipt } : { ok: false, error: body.error, status: response.status };
     }
-    // Non-function responses, e.g. the Supabase gateway rejecting the key.
-    return { ok: false, error: response.status === 429 ? 'rate_limited' : 'model_error' };
+    // Non-function responses come from the Supabase gateway.
+    return { ok: false, error: gatewayError(response.status), status: response.status };
   } catch {
     return { ok: false, error: 'network_error' };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function gatewayError(status: number): ReceiptApiError {
+  if (status === 404) {
+    return 'function_not_found';
+  }
+  if (status === 401 || status === 403) {
+    return 'unauthorized';
+  }
+  if (status === 429) {
+    return 'rate_limited';
+  }
+  return 'model_error';
 }
 
 // User-facing copy for each failure. Every failure falls back to manual entry.
@@ -83,10 +107,17 @@ export function describeReceiptApiError(error: ReceiptApiError): string {
       return 'The image is too large to read.';
     case 'not_a_transaction':
       return 'No transaction was found in this image.';
+    case 'function_not_found':
+      return 'The receipt reader is not deployed. Run: supabase functions deploy parse-receipt';
+    case 'unauthorized':
+      return 'The receipt reader rejected the app key. Check EXPO_PUBLIC_SUPABASE_ANON_KEY in .env.';
+    case 'server_misconfigured':
+      return 'The receipt reader has no Gemini key. Run: supabase secrets set GEMINI_API_KEY=...';
+    case 'image_error':
+      return 'This image could not be prepared for reading. Try another photo or screenshot.';
     case 'invalid_request':
     case 'method_not_allowed':
     case 'model_error':
-    case 'server_misconfigured':
       return 'The receipt could not be read. Please enter it manually.';
   }
 }
