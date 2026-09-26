@@ -30,9 +30,21 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# env files (API keys / secrets). Every variant is ignored; commit only the
+# template `.env.example` with empty values.
 .env
-.env*.local
+.env.*
+!.env.example
+
+# other files that commonly hold API keys or signing credentials
+credentials.json
+google-services.json
+GoogleService-Info.plist
+*.keystore
+secrets/
+
+# Claude Code per-user settings
+.claude/settings.local.json
 
 # typescript
 *.tsbuildinfo
