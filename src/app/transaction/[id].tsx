@@ -42,20 +42,19 @@ export default function EditTransactionScreen() {
   };
 
   async function handleSubmit(values: TransactionFormValues) {
-    if (!values.categoryId || !settings) {
+    if (!values.categoryId || !transaction) {
       return;
     }
-    const amountMinor = toMinorUnits(parseFloat(values.amountMajorText), settings.display_currency);
-    const rate = settings.last_rate ?? 1;
-    const homeMinor = convertMinor(amountMinor, settings.display_currency, settings.home_currency, rate);
+    // Editing keeps the transaction's original currency and rate_used: the
+    // rate is a snapshot from entry time (SPEC.md 3.3), so only home_minor is
+    // recomputed from it when the amount changes.
+    const amountMinor = toMinorUnits(parseFloat(values.amountMajorText), transaction.currency);
+    const homeMinor = convertMinor(amountMinor, transaction.currency, transaction.home_currency, transaction.rate_used);
 
     await updateTransaction(db, id, {
       type: values.type,
       amount_minor: amountMinor,
-      currency: settings.display_currency,
       home_minor: homeMinor,
-      home_currency: settings.home_currency,
-      rate_used: rate,
       category_id: values.categoryId,
       merchant: values.merchant.trim() || null,
       note: values.note.trim() || null,

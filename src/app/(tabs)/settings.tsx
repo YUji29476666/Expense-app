@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,23 +8,35 @@ import { Chip } from '@/components/chip';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { CURRENCY_EXPONENTS } from '@/constants/currencies';
+import { CURRENCY_PAIRS, type CurrencyPair } from '@/constants/currencies';
 import { useSettings } from '@/context/settings-context';
+import { useSQLiteContext } from '@/db/client';
+import { hasAnyTransactions } from '@/db/queries/transactions';
 import type { BenchmarksData } from '@/domain/benchmarks';
 import { toMajorUnits, toMinorUnits } from '@/domain/money';
 import { fetchLatestRate } from '@/lib/fx';
 
-const CURRENCY_CODES = Object.keys(CURRENCY_EXPONENTS);
 const MONTH_START_DAY_MIN = 1;
 const MONTH_START_DAY_MAX = 28;
 const benchmarks = benchmarksData as BenchmarksData;
 
 export default function SettingsScreen() {
   const safeAreaInsets = useSafeAreaInsets();
-  const { settings, updateSettings } = useSettings();
+  const db = useSQLiteContext();
+  const { settings, updateSettings, changeCurrencyPair } = useSettings();
+  const [pairLocked, setPairLocked] = useState(true);
   const [isFetchingRate, setIsFetchingRate] = useState(false);
   const [manualRateText, setManualRateText] = useState('');
   const [budgetText, setBudgetText] = useState('');
+
+  // Lock the pair once any transaction exists. This only drives the UI;
+  // updateCurrencyPair itself enforces the rule. Re-checked on focus because
+  // tab screens stay mounted while transactions are added elsewhere.
+  useFocusEffect(
+    useCallback(() => {
+      hasAnyTransactions(db).then(setPairLocked);
+    }, [db])
+  );
 
   if (!settings) {
     return (
@@ -74,6 +86,22 @@ export default function SettingsScreen() {
     setManualRateText('');
   }
 
+  async function handleChangeCurrencyPair(pair: CurrencyPair) {
+    const result = await changeCurrencyPair(pair);
+    if (!result.ok) {
+      Alert.alert(
+        'Currency pair is locked',
+        'Transactions already exist. Changing the pair would make past totals meaningless, so it stays fixed.'
+      );
+      setPairLocked(true);
+      return;
+    }
+    Alert.alert(
+      'Currency pair updated',
+      'Set the exchange rate and the monthly budget again before recording transactions.'
+    );
+  }
+
   function adjustMonthStartDay(delta: number) {
     const next = Math.min(MONTH_START_DAY_MAX, Math.max(MONTH_START_DAY_MIN, settings!.month_start_day + delta));
     updateSettings({ month_start_day: next });
@@ -87,30 +115,31 @@ export default function SettingsScreen() {
       ]}>
       <ThemedText type="subtitle">Settings</ThemedText>
 
-      <Section title="Display currency (local)">
+      <Section title="Currency pair">
         <View style={styles.chipRow}>
-          {CURRENCY_CODES.map((code) => (
+          {CURRENCY_PAIRS.map((pair) => (
             <Chip
-              key={code}
-              label={code}
-              selected={settings.display_currency === code}
-              onPress={() => updateSettings({ display_currency: code })}
+              key={pair.label}
+              label={pair.label}
+              selected={settings.display_currency === pair.display && settings.home_currency === pair.home}
+              onPress={() => {
+                if (pairLocked) {
+                  Alert.alert(
+                    'Currency pair is locked',
+                    'Transactions already exist, so the pair cannot change. Past records keep the currency they were entered in.'
+                  );
+                  return;
+                }
+                handleChangeCurrencyPair(pair);
+              }}
             />
           ))}
         </View>
-      </Section>
-
-      <Section title="Home currency">
-        <View style={styles.chipRow}>
-          {CURRENCY_CODES.map((code) => (
-            <Chip
-              key={code}
-              label={code}
-              selected={settings.home_currency === code}
-              onPress={() => updateSettings({ home_currency: code })}
-            />
-          ))}
-        </View>
+        {pairLocked && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Locked — transactions exist. Past records keep their original currency.
+          </ThemedText>
+        )}
       </Section>
 
       <Section title="Exchange rate">

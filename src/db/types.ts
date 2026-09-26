@@ -1,12 +1,14 @@
+import type { SupportedCurrency } from '@/constants/currencies';
+
 export type TransactionType = 'expense' | 'income';
 
 export type TransactionRow = {
   id: string;
   type: TransactionType;
   amount_minor: number;
-  currency: string;
+  currency: SupportedCurrency;
   home_minor: number;
-  home_currency: string;
+  home_currency: SupportedCurrency;
   rate_used: number;
   category_id: string;
   merchant: string | null;
@@ -28,11 +30,18 @@ export type CategoryRow = {
 
 export type SettingsRow = {
   id: 1;
-  display_currency: string;
-  home_currency: string;
+  display_currency: SupportedCurrency;
+  home_currency: SupportedCurrency;
   monthly_budget_minor: number;
   month_start_day: number; // 1-28
   region_code: string | null;
   last_rate: number | null;
   last_rate_at: string | null;
 };
+
+// The generic settings patch excludes both currency columns. Currencies can
+// only change through updateCurrencyPair, so code that updates just
+// display_currency (leaving last_rate pointing at the old pair) cannot be
+// written. last_rate stays patchable: refreshing the rate for the current
+// pair cannot break the "rate belongs to the current pair" invariant.
+export type SettingsPatch = Partial<Omit<SettingsRow, 'id' | 'display_currency' | 'home_currency'>>;

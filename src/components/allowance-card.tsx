@@ -4,6 +4,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { useSettings } from '@/context/settings-context';
+import type { SupportedCurrency } from '@/constants/currencies';
 import { Spacing } from '@/constants/theme';
 import type { AllowanceBand } from '@/domain/allowance';
 import { convertMinor, formatDualCurrency, formatMinor } from '@/domain/money';
@@ -23,7 +24,7 @@ export function AllowanceCard({
   todayAllowanceMinor: number;
   band: AllowanceBand;
   periodLabel: string;
-  displayCurrency: string;
+  displayCurrency: SupportedCurrency;
 }) {
   const { settings } = useSettings();
 

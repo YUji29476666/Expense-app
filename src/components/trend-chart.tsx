@@ -1,12 +1,13 @@
 import { BarChart } from 'react-native-gifted-charts';
 import { StyleSheet, View } from 'react-native';
 
+import type { SupportedCurrency } from '@/constants/currencies';
 import { Spacing } from '@/constants/theme';
 import { toMajorUnits } from '@/domain/money';
 import { useTheme } from '@/hooks/use-theme';
 import type { MonthlyTotal } from '@/hooks/use-analytics';
 
-export function TrendChart({ trend, currency }: { trend: MonthlyTotal[]; currency: string }) {
+export function TrendChart({ trend, currency }: { trend: MonthlyTotal[]; currency: SupportedCurrency }) {
   const theme = useTheme();
 
   const data = trend.map((entry) => ({

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
 
+import type { SupportedCurrency } from '@/constants/currencies';
 import { Spacing } from '@/constants/theme';
 import type { CategoryBreakdownEntry } from '@/hooks/use-analytics';
 import type { CategoryRow } from '@/db/types';
@@ -16,7 +17,7 @@ export function CategoryBreakdownChart({
 }: {
   breakdown: CategoryBreakdownEntry[];
   categories: CategoryRow[];
-  currency: string;
+  currency: SupportedCurrency;
   onSelectCategory: (categoryId: string) => void;
 }) {
   const categoryById = new Map(categories.map((category) => [category.id, category]));

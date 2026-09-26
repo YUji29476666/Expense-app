@@ -4,9 +4,11 @@ import { suggestCategoryForMerchant, type PastTransactionForSuggestion } from '@
 import type { TransactionRow } from '../types';
 
 // NOTE: aggregation below sums `amount_minor` directly, which assumes every
-// transaction was recorded in the currency that is currently
-// settings.display_currency. Phase 1 has no UI to change display currency
-// after transactions exist, so this holds; revisit if that changes.
+// transaction shares one currency. updateCurrencyPair enforces this: it
+// refuses to change the pair once any transaction exists, so `currency` in
+// this table is always a single value. If that is ever relaxed (e.g. moving
+// countries), split aggregation per currency — amount_minor's exponent is
+// currency-dependent (USD=2, JPY=0), so adding across currencies mixes units.
 
 export async function insertTransaction(db: SQLiteDatabase, row: TransactionRow): Promise<void> {
   await db.runAsync(
@@ -155,4 +157,11 @@ export async function getRecentlyUsedCategoryIds(db: SQLiteDatabase): Promise<st
     'SELECT category_id, MAX(occurred_at) as last_used FROM transactions GROUP BY category_id ORDER BY last_used DESC'
   );
   return rows.map((row) => row.category_id);
+}
+
+// Used to decide whether the currency pair may change. LIMIT 1 rather than
+// COUNT(*) because only existence matters.
+export async function hasAnyTransactions(db: SQLiteDatabase): Promise<boolean> {
+  const row = await db.getFirstAsync<{ id: string }>('SELECT id FROM transactions LIMIT 1');
+  return row !== null;
 }
