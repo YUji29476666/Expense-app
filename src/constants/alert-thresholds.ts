@@ -3,6 +3,6 @@
 // A category alert fires once spend reaches this fraction of its budget.
 export const CATEGORY_BUDGET_WARNING_RATIO = 0.8;
 
-// Today's allowance card turns from green to yellow once today's spend
-// reaches this fraction of today's allowance, and red once it's exceeded.
-export const TODAY_SPEND_WARNING_RATIO = 0.8;
+// The "This month you can spend" card turns yellow once less than this
+// fraction of the available budget is left, and red once it goes negative.
+export const REMAINING_BUDGET_WARNING_RATIO = 0.2;
