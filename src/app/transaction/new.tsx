@@ -40,11 +40,11 @@ export default function NewTransactionScreen() {
       return;
     }
     if (!outcome.result.ok) {
-      const { error, status } = outcome.result;
+      const { error, status, detail } = outcome.result;
       // The code line makes a failure report actionable.
       Alert.alert(
         'Could not read the image',
-        `${describeReceiptApiError(error)}\n\n(code: ${error}${status ? `, HTTP ${status}` : ''})`
+        `${describeReceiptApiError(error)}\n\n(code: ${error}${status ? `, HTTP ${status}` : ''}${detail ? `, ${detail}` : ''})`
       );
       return;
     }

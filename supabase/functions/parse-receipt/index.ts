@@ -28,6 +28,7 @@ const GEMINI_TIMEOUT_MS = 25_000;
 const rateLimiter = new RateLimiter();
 
 type GeminiPart = { text?: string; thought?: boolean };
+type GeminiErrorBody = { error?: { code?: number; status?: string; message?: string } };
 type GeminiResponse = {
   candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
   usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number };
@@ -40,8 +41,13 @@ function respond(body: ParseReceiptResponse, status: number): Response {
   });
 }
 
-function fail(error: ParseReceiptError, status: number, headers: Record<string, string> = {}): Response {
-  const response = respond({ ok: false, error }, status);
+function fail(
+  error: ParseReceiptError,
+  status: number,
+  headers: Record<string, string> = {},
+  detail?: string
+): Response {
+  const response = respond(detail ? { ok: false, error, detail } : { ok: false, error }, status);
   for (const [name, value] of Object.entries(headers)) {
     response.headers.set(name, value);
   }
@@ -120,14 +126,20 @@ Deno.serve(async (req) => {
       }
     );
     if (!response.ok) {
-      // Status only: the error body can echo request details.
-      console.error(`Gemini returned ${response.status}`);
-      return fail('model_error', 502);
+      // Gemini's error body names the cause (bad key, unknown model, bad
+      // schema, quota). It does not echo the image; truncate it anyway.
+      const errorBody = (await response.json().catch(() => null)) as GeminiErrorBody | null;
+      const reason = errorBody?.error?.status ?? 'UNKNOWN';
+      console.error(
+        `Gemini returned ${response.status} ${reason}: ${(errorBody?.error?.message ?? '').slice(0, 300)}`
+      );
+      return fail('model_error', 502, {}, `gemini_${response.status}_${reason}`);
     }
     gemini = (await response.json()) as GeminiResponse;
   } catch (error) {
-    console.error('Gemini request failed:', error instanceof Error ? error.name : 'unknown');
-    return fail('model_error', 502);
+    const name = error instanceof Error ? error.name : 'unknown';
+    console.error('Gemini request failed:', name);
+    return fail('model_error', 502, {}, name === 'TimeoutError' ? 'gemini_timeout' : 'gemini_unreachable');
   }
 
   const usage = gemini.usageMetadata;
@@ -141,13 +153,18 @@ Deno.serve(async (req) => {
     .map((part) => part.text)
     .join('');
   if (!text) {
-    console.error(`Gemini returned no text (finishReason=${candidate?.finishReason ?? 'none'})`);
-    return fail('model_error', 502);
+    const finishReason = candidate?.finishReason ?? 'none';
+    console.error(`Gemini returned no text (finishReason=${finishReason})`);
+    return fail('model_error', 502, {}, `gemini_no_text_${finishReason}`);
   }
 
   const parsed = parseModelOutput(text, request.categories);
   if (!parsed.ok) {
-    return parsed.error === 'not_a_transaction' ? fail('not_a_transaction', 422) : fail('model_error', 502);
+    if (parsed.error === 'not_a_transaction') {
+      return fail('not_a_transaction', 422);
+    }
+    console.error(`Unusable model output: ${parsed.error}`);
+    return fail('model_error', 502, {}, 'gemini_bad_output');
   }
   return respond({ ok: true, receipt: parsed.value }, 200);
 });

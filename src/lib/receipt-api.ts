@@ -30,7 +30,7 @@ export type ReceiptApiError =
 // `status` is the HTTP status when a response arrived, for diagnosis.
 export type ReceiptApiResult =
   | { ok: true; receipt: ParsedReceipt }
-  | { ok: false; error: ReceiptApiError; status?: number };
+  | { ok: false; error: ReceiptApiError; status?: number; detail?: string };
 
 function getConfig(): { url: string; anonKey: string } | null {
   const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -70,7 +70,9 @@ export async function parseReceiptImage(request: ParseReceiptRequest): Promise<R
     });
     const body: unknown = await response.json().catch(() => null);
     if (isParseReceiptResponse(body)) {
-      return body.ok ? { ok: true, receipt: body.receipt } : { ok: false, error: body.error, status: response.status };
+      return body.ok
+        ? { ok: true, receipt: body.receipt }
+        : { ok: false, error: body.error, status: response.status, detail: body.detail };
     }
     // Non-function responses come from the Supabase gateway.
     return { ok: false, error: gatewayError(response.status), status: response.status };

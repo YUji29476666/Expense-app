@@ -36,7 +36,11 @@ export type ParsedReceipt = {
   categoryId: string | null;
 };
 
-export type ParseReceiptResponse = { ok: true; receipt: ParsedReceipt } | { ok: false; error: ParseReceiptError };
+// `detail` narrows a model_error down for diagnosis (e.g. "gemini_404_NOT_FOUND",
+// "gemini_timeout"). It never carries request or image content.
+export type ParseReceiptResponse =
+  | { ok: true; receipt: ParsedReceipt }
+  | { ok: false; error: ParseReceiptError; detail?: string };
 
 export type ParseReceiptError =
   | 'method_not_allowed'
