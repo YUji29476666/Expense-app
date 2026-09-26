@@ -4,5 +4,5 @@
 export const CATEGORY_BUDGET_WARNING_RATIO = 0.8;
 
 // The "This month you can spend" card turns yellow once less than this
-// fraction of the available budget is left, and red once it goes negative.
+// fraction of the monthly budget is left, and red once it goes negative.
 export const REMAINING_BUDGET_WARNING_RATIO = 0.2;

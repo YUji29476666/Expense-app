@@ -4,13 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SupportedCurrency } from '@/constants/currencies';
 import { useSettings } from '@/context/settings-context';
 import { useSQLiteContext } from '@/db/client';
-import { sumExpenseMinorInRange, sumIncomeMinorInRange } from '@/db/queries/transactions';
-import {
-  computeAvailableBudgetMinor,
-  computeRemainingBand,
-  computeRemainingBudgetMinor,
-  type AllowanceBand,
-} from '@/domain/allowance';
+import { sumExpenseMinorInRange } from '@/db/queries/transactions';
+import { computeRemainingBand, computeRemainingBudgetMinor, type AllowanceBand } from '@/domain/allowance';
 import { formatISODate, formatPeriodLabel, getBudgetPeriod } from '@/domain/month-period';
 
 export type TodaySummary = {
@@ -42,26 +37,17 @@ export function useTodaySummary(): TodaySummary {
     const periodStartStr = formatISODate(period.start);
     const todayStr = formatISODate(now);
 
-    const [monthSpendSoFarMinor, monthIncomeSoFarMinor] = await Promise.all([
-      sumExpenseMinorInRange(db, periodStartStr, todayStr),
-      sumIncomeMinorInRange(db, periodStartStr, todayStr),
-    ]);
-
+    const monthSpendSoFarMinor = await sumExpenseMinorInRange(db, periodStartStr, todayStr);
     const remainingBudgetMinor = computeRemainingBudgetMinor({
       monthlyBudgetMinor: settings.monthly_budget_minor,
       monthSpendSoFarMinor,
-      monthIncomeSoFarMinor,
-    });
-    const availableBudgetMinor = computeAvailableBudgetMinor({
-      monthlyBudgetMinor: settings.monthly_budget_minor,
-      monthIncomeSoFarMinor,
     });
 
     setState({
       periodLabel: formatPeriodLabel(period),
       monthSpendSoFarMinor,
       remainingBudgetMinor,
-      band: computeRemainingBand(remainingBudgetMinor, availableBudgetMinor),
+      band: computeRemainingBand(remainingBudgetMinor, settings.monthly_budget_minor),
     });
   }, [db, settings]);
 
