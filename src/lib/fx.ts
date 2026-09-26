@@ -29,6 +29,6 @@ export async function fetchLatestRate(
     if (fallback.lastRate !== null) {
       return { rate: fallback.lastRate, source: 'cached', asOf: fallback.lastRateAt };
     }
-    throw new Error('No exchange rate available. Enter one manually.');
+    throw new Error('No exchange rate available. Check your connection and try again.');
   }
 }

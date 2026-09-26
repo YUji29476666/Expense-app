@@ -33,7 +33,7 @@ export default function NewTransactionScreen() {
     if (settings.last_rate === null) {
       Alert.alert(
         'Exchange rate not set',
-        'Set the exchange rate in Settings first. Each transaction stores the rate used at entry time and never recalculates it, so a placeholder rate cannot be corrected later.'
+        'Fetch the latest exchange rate in Settings first. Each transaction stores the rate used at entry time and never recalculates it, so a placeholder rate cannot be corrected later.'
       );
       return;
     }

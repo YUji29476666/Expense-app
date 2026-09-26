@@ -1,4 +1,9 @@
-import { computeAllowanceBand, computeTodayAllowanceMinor } from '../allowance';
+import {
+  computeAllowanceBand,
+  computeAvailableBudgetMinor,
+  computeRemainingBudgetMinor,
+  computeTodayAllowanceMinor,
+} from '../allowance';
 
 describe('computeTodayAllowanceMinor', () => {
   it('splits the remaining budget evenly across remaining days including today', () => {
@@ -57,5 +62,36 @@ describe('computeAllowanceBand', () => {
   it('is over when there is no allowance left at all', () => {
     expect(computeAllowanceBand(0, 0)).toBe('over');
     expect(computeAllowanceBand(0, -500)).toBe('over');
+  });
+});
+
+describe('computeAvailableBudgetMinor / computeRemainingBudgetMinor', () => {
+  it('adds income recorded this period to the monthly budget', () => {
+    // $900 budget + $300 part-time pay -> $1,200 available.
+    expect(computeAvailableBudgetMinor({ monthlyBudgetMinor: 90000, monthIncomeSoFarMinor: 30000 })).toBe(120000);
+  });
+
+  it('remaining = budget - expense + income', () => {
+    expect(
+      computeRemainingBudgetMinor({ monthlyBudgetMinor: 90000, monthSpendSoFarMinor: 50000, monthIncomeSoFarMinor: 30000 })
+    ).toBe(70000);
+  });
+
+  it('with no income the remaining budget is budget - expense', () => {
+    expect(
+      computeRemainingBudgetMinor({ monthlyBudgetMinor: 90000, monthSpendSoFarMinor: 95000, monthIncomeSoFarMinor: 0 })
+    ).toBe(-5000);
+  });
+
+  it('income raises today’s allowance through the available budget', () => {
+    // $900 budget, $300 income, $600 spent, 9 days left after today -> $600 / 10 days.
+    const available = computeAvailableBudgetMinor({ monthlyBudgetMinor: 90000, monthIncomeSoFarMinor: 30000 });
+    expect(
+      computeTodayAllowanceMinor({
+        monthlyBudgetMinor: available,
+        monthSpendSoFarMinor: 60000,
+        daysRemainingExcludingToday: 9,
+      })
+    ).toBe(6000);
   });
 });

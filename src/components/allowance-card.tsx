@@ -17,24 +17,26 @@ const BAND_COLOR_KEY = {
 
 export function AllowanceCard({
   todayAllowanceMinor,
+  remainingBudgetMinor,
   band,
   periodLabel,
   displayCurrency,
 }: {
   todayAllowanceMinor: number;
+  remainingBudgetMinor: number;
   band: AllowanceBand;
   periodLabel: string;
   displayCurrency: SupportedCurrency;
 }) {
   const { settings } = useSettings();
 
-  const amountText = (() => {
+  function formatAmount(amountMinor: number): string {
     if (settings?.last_rate) {
-      const homeMinor = convertMinor(todayAllowanceMinor, displayCurrency, settings.home_currency, settings.last_rate);
-      return formatDualCurrency(todayAllowanceMinor, displayCurrency, homeMinor, settings.home_currency);
+      const homeMinor = convertMinor(amountMinor, displayCurrency, settings.home_currency, settings.last_rate);
+      return formatDualCurrency(amountMinor, displayCurrency, homeMinor, settings.home_currency);
     }
-    return formatMinor(todayAllowanceMinor, displayCurrency);
-  })();
+    return formatMinor(amountMinor, displayCurrency);
+  }
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -42,7 +44,10 @@ export function AllowanceCard({
         Today you can spend
       </ThemedText>
       <ThemedText type="title" themeColor={BAND_COLOR_KEY[band]} style={styles.amount}>
-        {amountText}
+        {formatAmount(todayAllowanceMinor)}
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        Budget left this period: {formatAmount(remainingBudgetMinor)}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         {periodLabel}

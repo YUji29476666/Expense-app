@@ -7,6 +7,7 @@ import { CategoryPicker } from './category-picker';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
+import { isCategoryForType } from '@/constants/categories';
 import { Spacing } from '@/constants/theme';
 import { useSQLiteContext } from '@/db/client';
 import { getMostFrequentCategoryForMerchant } from '@/db/queries/transactions';
@@ -34,7 +35,7 @@ export function TransactionForm({
   onDelete?: () => void;
 }) {
   const db = useSQLiteContext();
-  const categories = useMruCategories();
+  const mruCategories = useMruCategories();
   const amountInputRef = useRef<TextInput>(null);
 
   const [type, setType] = useState<TransactionType>(initialValues.type);
@@ -47,6 +48,18 @@ export function TransactionForm({
   const [categoryManuallySet, setCategoryManuallySet] = useState(initialValues.categoryId !== null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Income shows Scholarship / Part-time job / Internship (+ Other);
+  // expenses hide those income sources.
+  const categories = mruCategories.filter((category) => isCategoryForType(category.id, type));
+
+  function handleSelectType(nextType: TransactionType) {
+    setType(nextType);
+    if (categoryId !== null && !isCategoryForType(categoryId, nextType)) {
+      setCategoryId(null);
+      setCategoryManuallySet(false);
+    }
+  }
+
   useEffect(() => {
     const timeout = setTimeout(() => amountInputRef.current?.focus(), 50);
     return () => clearTimeout(timeout);
@@ -57,7 +70,7 @@ export function TransactionForm({
       return;
     }
     const suggestion = await getMostFrequentCategoryForMerchant(db, merchant);
-    if (suggestion) {
+    if (suggestion && isCategoryForType(suggestion, type)) {
       setCategoryId(suggestion);
     }
   }
@@ -85,12 +98,12 @@ export function TransactionForm({
   return (
     <View style={styles.container}>
       <View style={styles.typeToggle}>
-        <Pressable style={styles.typeButtonWrapper} onPress={() => setType('expense')}>
+        <Pressable style={styles.typeButtonWrapper} onPress={() => handleSelectType('expense')}>
           <ThemedView type={type === 'expense' ? 'backgroundSelected' : 'backgroundElement'} style={styles.typeButton}>
             <ThemedText type="smallBold">Expense</ThemedText>
           </ThemedView>
         </Pressable>
-        <Pressable style={styles.typeButtonWrapper} onPress={() => setType('income')}>
+        <Pressable style={styles.typeButtonWrapper} onPress={() => handleSelectType('income')}>
           <ThemedView type={type === 'income' ? 'backgroundSelected' : 'backgroundElement'} style={styles.typeButton}>
             <ThemedText type="smallBold">Income</ThemedText>
           </ThemedView>

@@ -11,13 +11,18 @@ import {
 import { useSettings } from '@/context/settings-context';
 import { useSQLiteContext } from '@/db/client';
 import { listCategories } from '@/db/queries/categories';
-import { sumExpenseMinorByCategoryInRange, sumExpenseMinorInRange } from '@/db/queries/transactions';
+import {
+  sumExpenseMinorByCategoryInRange,
+  sumExpenseMinorInRange,
+  sumIncomeMinorInRange,
+} from '@/db/queries/transactions';
 import {
   compareToSamePointLastPeriod,
   computeCategoryBudgetWarning,
   computePaceProjection,
   computeRemainingPerDay,
 } from '@/domain/alerts';
+import { computeAvailableBudgetMinor } from '@/domain/allowance';
 import {
   formatISODate,
   getBudgetPeriod,
@@ -48,11 +53,18 @@ export function useBudgetAlerts(): string[] {
     const lastPeriod = getPreviousBudgetPeriod(period, settings.month_start_day);
     const lastPeriodSamePointEnd = minDate([addDays(lastPeriod.start, daysElapsedIncludingToday - 1), lastPeriod.end]);
 
-    const [monthSpendSoFarMinor, lastPeriodSpendMinor, categories] = await Promise.all([
+    const [monthSpendSoFarMinor, monthIncomeSoFarMinor, lastPeriodSpendMinor, categories] = await Promise.all([
       sumExpenseMinorInRange(db, periodStartStr, todayStr),
+      sumIncomeMinorInRange(db, periodStartStr, todayStr),
       sumExpenseMinorInRange(db, formatISODate(lastPeriod.start), formatISODate(lastPeriodSamePointEnd)),
       listCategories(db),
     ]);
+
+    // Income recorded this period tops up the budget (budget - expense + income).
+    const availableBudgetMinor = computeAvailableBudgetMinor({
+      monthlyBudgetMinor: settings.monthly_budget_minor,
+      monthIncomeSoFarMinor,
+    });
 
     const messages: string[] = [];
 
@@ -60,7 +72,7 @@ export function useBudgetAlerts(): string[] {
       monthSpendSoFarMinor,
       daysElapsedIncludingToday,
       totalDaysInPeriod,
-      monthlyBudgetMinor: settings.monthly_budget_minor,
+      monthlyBudgetMinor: availableBudgetMinor,
     });
     const paceMessage = paceProjectionMessage(pace, settings.display_currency);
     if (paceMessage) {
@@ -80,7 +92,7 @@ export function useBudgetAlerts(): string[] {
     }
 
     const remaining = computeRemainingPerDay({
-      monthlyBudgetMinor: settings.monthly_budget_minor,
+      monthlyBudgetMinor: availableBudgetMinor,
       monthSpendSoFarMinor,
       daysRemainingExcludingToday,
     });
