@@ -3,9 +3,11 @@ import {
   formatPeriodLabel,
   formatPeriodShortLabel,
   getBudgetPeriod,
+  getBudgetPeriodByOffset,
   getDaysElapsedIncludingToday,
   getDaysRemainingExcludingToday,
   getPreviousBudgetPeriod,
+  getRecentBudgetPeriods,
   getTotalDaysInPeriod,
 } from '../month-period';
 
@@ -87,5 +89,37 @@ describe('labels', () => {
 describe('formatISODate', () => {
   it('formats as YYYY-MM-DD', () => {
     expect(formatISODate(new Date(2026, 8, 5))).toBe('2026-09-05');
+  });
+});
+
+describe('getBudgetPeriodByOffset', () => {
+  const ref = new Date(2026, 8, 26); // Sep 26, 2026
+
+  it('returns the current period for offset 0', () => {
+    expect(getBudgetPeriodByOffset(ref, 25, 0)).toEqual({ start: new Date(2026, 8, 25), end: new Date(2026, 9, 24) });
+  });
+
+  it('steps back whole budget periods, not calendar months', () => {
+    expect(getBudgetPeriodByOffset(ref, 25, 1)).toEqual({ start: new Date(2026, 7, 25), end: new Date(2026, 8, 24) });
+    expect(getBudgetPeriodByOffset(ref, 25, 3)).toEqual({ start: new Date(2026, 5, 25), end: new Date(2026, 6, 24) });
+  });
+
+  it('crosses a year boundary', () => {
+    expect(getBudgetPeriodByOffset(new Date(2026, 0, 10), 1, 1)).toEqual({
+      start: new Date(2025, 11, 1),
+      end: new Date(2025, 11, 31),
+    });
+  });
+});
+
+describe('getRecentBudgetPeriods', () => {
+  it('lists periods newest first, contiguous with no gaps', () => {
+    const periods = getRecentBudgetPeriods(new Date(2026, 8, 26), 25, 3);
+    expect(periods.map((p) => p.start)).toEqual([new Date(2026, 8, 25), new Date(2026, 7, 25), new Date(2026, 6, 25)]);
+    for (let i = 1; i < periods.length; i++) {
+      const { end } = periods[i];
+      // Day after this period's end is the next period's start (DST-safe).
+      expect(new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1)).toEqual(periods[i - 1].start);
+    }
   });
 });

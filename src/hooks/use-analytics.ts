@@ -8,8 +8,9 @@ import { sumByTypeInRange, sumExpenseMinorInRange, type TypeTotals } from '@/db/
 import {
   formatISODate,
   formatPeriodShortLabel,
-  getBudgetPeriod,
+  getBudgetPeriodByOffset,
   getPreviousBudgetPeriod,
+  getRecentBudgetPeriods,
   type BudgetPeriod,
 } from '@/domain/month-period';
 
@@ -24,10 +25,20 @@ export type CategoryBreakdownEntry = {
   totalMinor: number;
 };
 
+// One row of the "Past periods" list, in the display currency.
+export type PeriodSummary = {
+  offset: number; // 0 = current period
+  period: BudgetPeriod;
+  incomeMinor: number;
+  expenseMinor: number;
+};
+
 export type AnalyticsData = {
   isLoading: boolean;
-  currentPeriod: BudgetPeriod;
+  // The period every card below describes, chosen by `periodOffset`.
+  selectedPeriod: BudgetPeriod;
   breakdown: CategoryBreakdownEntry[];
+  // TREND_PERIODS periods ending at the selected one.
   trend: MonthlyTotal[];
   incomeMinor: number;
   expenseMinor: number;
@@ -36,11 +47,15 @@ export type AnalyticsData = {
   expenseHomeMinor: number;
   // Display-currency totals across both types, for the average rate.
   totals: TypeTotals;
+  // HISTORY_PERIODS most recent periods, newest first.
+  history: PeriodSummary[];
 };
 
 const TREND_PERIODS = 6;
+export const HISTORY_PERIODS = 12;
 
-export function useAnalytics(): AnalyticsData {
+// `periodOffset`: 0 = current budget period, 1 = previous, ...
+export function useAnalytics(periodOffset: number): AnalyticsData {
   const db = useSQLiteContext();
   const { settings } = useSettings();
   const [data, setData] = useState<Omit<AnalyticsData, 'isLoading'> | null>(null);
@@ -50,25 +65,32 @@ export function useAnalytics(): AnalyticsData {
       return;
     }
     const now = new Date();
-    const currentPeriod = getBudgetPeriod(now, settings.month_start_day);
+    const monthStartDay = settings.month_start_day;
+    const selectedPeriod = getBudgetPeriodByOffset(now, monthStartDay, periodOffset);
+    const start = formatISODate(selectedPeriod.start);
+    const end = formatISODate(selectedPeriod.end);
 
-    const periods: BudgetPeriod[] = [currentPeriod];
+    const trendPeriods: BudgetPeriod[] = [selectedPeriod];
     for (let i = 1; i < TREND_PERIODS; i++) {
-      periods.unshift(getPreviousBudgetPeriod(periods[0], settings.month_start_day));
+      trendPeriods.unshift(getPreviousBudgetPeriod(trendPeriods[0], monthStartDay));
     }
+    const historyPeriods = getRecentBudgetPeriods(now, monthStartDay, HISTORY_PERIODS);
 
-    const [breakdownRows, byType, trendTotals] = await Promise.all([
-      getCategoryBreakdownForRange(db, formatISODate(currentPeriod.start), formatISODate(currentPeriod.end)),
-      sumByTypeInRange(db, formatISODate(currentPeriod.start), formatISODate(currentPeriod.end)),
+    const [breakdownRows, byType, trendTotals, historyTotals] = await Promise.all([
+      getCategoryBreakdownForRange(db, start, end),
+      sumByTypeInRange(db, start, end),
       Promise.all(
-        periods.map((period) => sumExpenseMinorInRange(db, formatISODate(period.start), formatISODate(period.end)))
+        trendPeriods.map((period) => sumExpenseMinorInRange(db, formatISODate(period.start), formatISODate(period.end)))
+      ),
+      Promise.all(
+        historyPeriods.map((period) => sumByTypeInRange(db, formatISODate(period.start), formatISODate(period.end)))
       ),
     ]);
 
     setData({
-      currentPeriod,
+      selectedPeriod,
       breakdown: breakdownRows.map((row) => ({ categoryId: row.category_id, totalMinor: row.total_minor })),
-      trend: periods.map((period, index) => ({
+      trend: trendPeriods.map((period, index) => ({
         period,
         label: formatPeriodShortLabel(period),
         totalMinor: trendTotals[index],
@@ -81,8 +103,14 @@ export function useAnalytics(): AnalyticsData {
         amountMinor: byType.income.amountMinor + byType.expense.amountMinor,
         homeMinor: byType.income.homeMinor + byType.expense.homeMinor,
       },
+      history: historyPeriods.map((period, offset) => ({
+        offset,
+        period,
+        incomeMinor: historyTotals[offset].income.amountMinor,
+        expenseMinor: historyTotals[offset].expense.amountMinor,
+      })),
     });
-  }, [db, settings]);
+  }, [db, settings, periodOffset]);
 
   useEffect(() => {
     load();
@@ -96,7 +124,7 @@ export function useAnalytics(): AnalyticsData {
 
   return {
     isLoading: data === null,
-    currentPeriod: data?.currentPeriod ?? getBudgetPeriod(new Date(), settings?.month_start_day ?? 1),
+    selectedPeriod: data?.selectedPeriod ?? getBudgetPeriodByOffset(new Date(), settings?.month_start_day ?? 1, periodOffset),
     breakdown: data?.breakdown ?? [],
     trend: data?.trend ?? [],
     incomeMinor: data?.incomeMinor ?? 0,
@@ -104,5 +132,6 @@ export function useAnalytics(): AnalyticsData {
     incomeHomeMinor: data?.incomeHomeMinor ?? 0,
     expenseHomeMinor: data?.expenseHomeMinor ?? 0,
     totals: data?.totals ?? { amountMinor: 0, homeMinor: 0 },
+    history: data?.history ?? [],
   };
 }

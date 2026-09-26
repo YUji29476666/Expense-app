@@ -57,3 +57,25 @@ export function formatPeriodShortLabel(period: BudgetPeriod): string {
 export function formatISODate(date: Date): string {
   return format(date, 'yyyy-MM-dd');
 }
+
+// The budget period `offset` periods before the one containing
+// `referenceDate` (0 = current, 1 = previous, ...).
+export function getBudgetPeriodByOffset(referenceDate: Date, monthStartDay: number, offset: number): BudgetPeriod {
+  let period = getBudgetPeriod(referenceDate, monthStartDay);
+  for (let i = 0; i < offset; i++) {
+    period = getPreviousBudgetPeriod(period, monthStartDay);
+  }
+  return period;
+}
+
+// The `count` most recent budget periods, newest first, starting with the
+// one containing `referenceDate`.
+export function getRecentBudgetPeriods(referenceDate: Date, monthStartDay: number, count: number): BudgetPeriod[] {
+  const periods: BudgetPeriod[] = [];
+  let period = getBudgetPeriod(referenceDate, monthStartDay);
+  for (let i = 0; i < count; i++) {
+    periods.push(period);
+    period = getPreviousBudgetPeriod(period, monthStartDay);
+  }
+  return periods;
+}
