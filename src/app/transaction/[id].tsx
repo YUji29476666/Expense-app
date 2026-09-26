@@ -11,6 +11,7 @@ import { deleteTransaction, getTransactionById, updateTransaction } from '@/db/q
 import type { TransactionRow } from '@/db/types';
 import { formatISODate } from '@/domain/month-period';
 import { convertMinor, toMajorUnits, toMinorUnits } from '@/domain/money';
+import { chooseRateForSave } from '@/lib/rate-prompt';
 
 export default function EditTransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,23 +43,39 @@ export default function EditTransactionScreen() {
   };
 
   async function handleSubmit(values: TransactionFormValues) {
-    if (!values.categoryId || !transaction) {
+    if (!values.categoryId || !transaction || !settings) {
       return;
     }
-    // Editing keeps the transaction's original currency and rate_used: the
-    // rate is a snapshot from entry time (SPEC.md 3.3), so only home_minor is
-    // recomputed from it when the amount changes.
+    // Editing keeps the transaction's original currency. rate_used belongs to
+    // the transaction's date (SPEC.md 3.3): it is kept as is unless the date
+    // changes, in which case the rate for the new date replaces it.
+    const occurredAtIso = formatISODate(values.occurredAt);
+    let rate = transaction.rate_used;
+    if (occurredAtIso !== transaction.occurred_at) {
+      const newRate = await chooseRateForSave({
+        occurredAtIso,
+        todayIso: formatISODate(new Date()),
+        displayCurrency: transaction.currency,
+        homeCurrency: transaction.home_currency,
+        currentRate: settings.last_rate,
+      });
+      if (newRate === null) {
+        return;
+      }
+      rate = newRate;
+    }
     const amountMinor = toMinorUnits(parseFloat(values.amountMajorText), transaction.currency);
-    const homeMinor = convertMinor(amountMinor, transaction.currency, transaction.home_currency, transaction.rate_used);
+    const homeMinor = convertMinor(amountMinor, transaction.currency, transaction.home_currency, rate);
 
     await updateTransaction(db, id, {
       type: values.type,
       amount_minor: amountMinor,
       home_minor: homeMinor,
+      rate_used: rate,
       category_id: values.categoryId,
       merchant: values.merchant.trim() || null,
       note: values.note.trim() || null,
-      occurred_at: formatISODate(values.occurredAt),
+      occurred_at: occurredAtIso,
     });
 
     router.back();

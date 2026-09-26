@@ -16,6 +16,8 @@ import { convertMinor, toMinorUnits } from '@/domain/money';
 import { buildReceiptPrefill, type ReceiptNotice } from '@/domain/receipt-prefill';
 import { useCategories } from '@/hooks/use-categories';
 import { useReceiptScan, type ReceiptSource } from '@/hooks/use-receipt-scan';
+import { fetchRateOnDate } from '@/lib/fx';
+import { chooseRateForSave } from '@/lib/rate-prompt';
 import { describeReceiptApiError } from '@/lib/receipt-api';
 
 function emptyValues(): TransactionFormValues {
@@ -61,12 +63,24 @@ export default function NewTransactionScreen() {
     if (!settings) {
       return;
     }
+    const receipt = outcome.result.receipt;
+    // A home-currency receipt is converted for the form at its own date's rate
+    // when that date is in the past; the current rate otherwise or offline.
+    let conversionRate = settings.last_rate;
+    const todayIso = formatISODate(new Date());
+    if (receipt.currency === settings.home_currency && receipt.date && receipt.date < todayIso) {
+      try {
+        conversionRate = (await fetchRateOnDate(settings.display_currency, settings.home_currency, receipt.date)).rate;
+      } catch {
+        // Keep the current rate; the banner shows which rate was applied.
+      }
+    }
     // Prefill only: the user reviews every field and saves via handleSubmit,
     // exactly like a manual entry. Nothing is saved automatically.
-    const { prefill, notices } = buildReceiptPrefill(outcome.result.receipt, {
+    const { prefill, notices } = buildReceiptPrefill(receipt, {
       displayCurrency: settings.display_currency,
       homeCurrency: settings.home_currency,
-      rate: settings.last_rate,
+      rate: conversionRate,
       availableCategoryIds: new Set(categories.map((category) => category.id)),
       today: new Date(),
     });
@@ -79,17 +93,20 @@ export default function NewTransactionScreen() {
     if (!settings || !values.categoryId) {
       return;
     }
-    // rate_used is a snapshot frozen at entry time and never recalculated
-    // (SPEC.md 3.3), so a wrong rate saved here can never be repaired.
-    // Never substitute a placeholder like 1 — block the save instead.
-    if (settings.last_rate === null) {
-      Alert.alert(
-        'Exchange rate not set',
-        'Fetch the latest exchange rate in Settings first. Each transaction stores the rate used at entry time and never recalculates it, so a placeholder rate cannot be corrected later.'
-      );
+    // rate_used is frozen and never recalculated (SPEC.md 3.3), so it must be
+    // the rate of the transaction's own date: today's rate for today, the
+    // published rate of that day for a back-dated entry. Never a placeholder.
+    const occurredAtIso = formatISODate(values.occurredAt);
+    const rate = await chooseRateForSave({
+      occurredAtIso,
+      todayIso: formatISODate(new Date()),
+      displayCurrency: settings.display_currency,
+      homeCurrency: settings.home_currency,
+      currentRate: settings.last_rate,
+    });
+    if (rate === null) {
       return;
     }
-    const rate = settings.last_rate;
     const amountMinor = toMinorUnits(parseFloat(values.amountMajorText), settings.display_currency);
     const homeMinor = convertMinor(amountMinor, settings.display_currency, settings.home_currency, rate);
 
@@ -104,7 +121,7 @@ export default function NewTransactionScreen() {
       category_id: values.categoryId,
       merchant: values.merchant.trim() || null,
       note: values.note.trim() || null,
-      occurred_at: formatISODate(values.occurredAt),
+      occurred_at: occurredAtIso,
       created_at: new Date().toISOString(),
       receipt_uri: null,
     });
