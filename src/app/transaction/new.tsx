@@ -1,7 +1,9 @@
 import * as Crypto from 'expo-crypto';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ReceiptReviewBanner } from '@/components/receipt-review-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TransactionForm, type TransactionFormValues } from '@/components/transaction-form';
@@ -11,24 +13,32 @@ import { useSQLiteContext } from '@/db/client';
 import { insertTransaction } from '@/db/queries/transactions';
 import { formatISODate } from '@/domain/month-period';
 import { convertMinor, toMinorUnits } from '@/domain/money';
+import { buildReceiptPrefill, type ReceiptNotice } from '@/domain/receipt-prefill';
 import { useCategories } from '@/hooks/use-categories';
 import { useReceiptScan, type ReceiptSource } from '@/hooks/use-receipt-scan';
 import { describeReceiptApiError } from '@/lib/receipt-api';
 
-const INITIAL_VALUES: TransactionFormValues = {
-  type: 'expense',
-  amountMajorText: '',
-  categoryId: null,
-  merchant: '',
-  note: '',
-  occurredAt: new Date(),
-};
+function emptyValues(): TransactionFormValues {
+  return {
+    type: 'expense',
+    amountMajorText: '',
+    categoryId: null,
+    merchant: '',
+    note: '',
+    occurredAt: new Date(),
+  };
+}
 
 export default function NewTransactionScreen() {
   const db = useSQLiteContext();
   const { settings } = useSettings();
   const { categories } = useCategories();
   const { scan, isScanning } = useReceiptScan(categories);
+  // TransactionForm reads initialValues only on mount, so a scan swaps in
+  // new values and bumps the key to remount it prefilled.
+  const [formValues, setFormValues] = useState<TransactionFormValues>(emptyValues);
+  const [formKey, setFormKey] = useState(0);
+  const [receiptNotices, setReceiptNotices] = useState<ReceiptNotice[] | null>(null);
 
   async function handleScan(source: ReceiptSource) {
     const outcome = await scan(source);
@@ -48,19 +58,21 @@ export default function NewTransactionScreen() {
       );
       return;
     }
-    // Step 5 check only: the confirmation screen (Step 7) will prefill the
-    // form with this instead of showing it.
-    const receipt = outcome.result.receipt;
-    Alert.alert(
-      'Read from image',
-      [
-        `Type: ${receipt.type}`,
-        `Amount: ${receipt.amount ?? '—'} ${receipt.currency ?? ''}`,
-        `Merchant: ${receipt.merchant ?? '—'}`,
-        `Date: ${receipt.date ?? '—'}`,
-        `Category: ${receipt.categoryId ?? '—'}`,
-      ].join('\n')
-    );
+    if (!settings) {
+      return;
+    }
+    // Prefill only: the user reviews every field and saves via handleSubmit,
+    // exactly like a manual entry. Nothing is saved automatically.
+    const { prefill, notices } = buildReceiptPrefill(outcome.result.receipt, {
+      displayCurrency: settings.display_currency,
+      homeCurrency: settings.home_currency,
+      rate: settings.last_rate,
+      availableCategoryIds: new Set(categories.map((category) => category.id)),
+      today: new Date(),
+    });
+    setFormValues({ ...prefill, note: '' });
+    setReceiptNotices(notices);
+    setFormKey((key) => key + 1);
   }
 
   async function handleSubmit(values: TransactionFormValues) {
@@ -111,7 +123,10 @@ export default function NewTransactionScreen() {
           Reading image…
         </ThemedText>
       )}
-      <TransactionForm initialValues={INITIAL_VALUES} submitLabel="Save" onSubmit={handleSubmit} />
+      {receiptNotices && settings && (
+        <ReceiptReviewBanner notices={receiptNotices} displayCurrency={settings.display_currency} />
+      )}
+      <TransactionForm key={formKey} initialValues={formValues} submitLabel="Save" onSubmit={handleSubmit} />
     </ScrollView>
   );
 }
