@@ -12,7 +12,7 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useSettings } from '@/context/settings-context';
 import { findBenchmarkRegion, type BenchmarksData } from '@/domain/benchmarks';
 import { formatPeriodLabel } from '@/domain/month-period';
-import { formatMinor } from '@/domain/money';
+import { computeAverageRate, formatMinor } from '@/domain/money';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useCategories } from '@/hooks/use-categories';
 
@@ -36,6 +36,19 @@ export default function AnalyticsScreen() {
 
   const region = settings.region_code ? findBenchmarkRegion(benchmarks, settings.region_code) : null;
   const netMinor = analytics.incomeMinor - analytics.expenseMinor;
+  const netHomeMinor = analytics.incomeHomeMinor - analytics.expenseHomeMinor;
+  const averageRate = computeAverageRate(
+    analytics.totals.amountMinor,
+    settings.display_currency,
+    analytics.totals.homeMinor,
+    settings.home_currency
+  );
+  const averageRateText =
+    averageRate !== null ? formatRate(averageRate, settings.display_currency, settings.home_currency) : '—';
+  const currentRateText =
+    settings.last_rate !== null
+      ? formatRate(settings.last_rate, settings.display_currency, settings.home_currency)
+      : 'not set';
 
   return (
     <ScrollView
@@ -69,6 +82,36 @@ export default function AnalyticsScreen() {
         </View>
       </ThemedView>
 
+      <ThemedView type="backgroundElement" style={styles.netCard}>
+        <ThemedText type="small" themeColor="textSecondary">
+          In {settings.home_currency} this period
+        </ThemedText>
+        <ThemedText
+          type="title"
+          themeColor={netHomeMinor >= 0 ? 'allowanceGood' : 'allowanceOver'}
+          style={styles.netAmount}>
+          {netHomeMinor >= 0 ? '+' : ''}
+          {formatMinor(netHomeMinor, settings.home_currency)}
+        </ThemedText>
+        <View style={styles.netBreakdown}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Income {formatMinor(analytics.incomeHomeMinor, settings.home_currency)}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Expense {formatMinor(analytics.expenseHomeMinor, settings.home_currency)}
+          </ThemedText>
+        </View>
+        <View style={styles.rateLines}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Avg. rate used: {averageRateText}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Current rate: {currentRateText}
+            {settings.last_rate_at ? ` · updated ${new Date(settings.last_rate_at).toLocaleDateString()}` : ''}
+          </ThemedText>
+        </View>
+      </ThemedView>
+
       <View style={styles.section}>
         <ThemedText type="smallBold">Breakdown by category</ThemedText>
         <CategoryBreakdownChart
@@ -92,6 +135,12 @@ export default function AnalyticsScreen() {
       />
     </ScrollView>
   );
+}
+
+// Each transaction's home amount uses the rate it was recorded at, so the
+// average rate is shown next to the current one to explain the totals.
+function formatRate(rate: number, from: string, to: string): string {
+  return `1 ${from} = ${rate.toFixed(2)} ${to}`;
 }
 
 const styles = StyleSheet.create({
@@ -123,5 +172,9 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
+  },
+  rateLines: {
+    marginTop: Spacing.two,
+    gap: Spacing.half,
   },
 });

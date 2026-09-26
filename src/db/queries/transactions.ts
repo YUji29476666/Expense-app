@@ -91,6 +91,31 @@ export async function sumIncomeMinorInRange(
   return row?.total ?? 0;
 }
 
+export type TypeTotals = { amountMinor: number; homeMinor: number };
+
+// Per-type totals in both currencies. home_minor was converted at each
+// transaction's own rate_used, so these home totals never shift when the
+// current rate changes (SPEC.md 3.3).
+export async function sumByTypeInRange(
+  db: SQLiteDatabase,
+  startDate: string,
+  endDateInclusive: string
+): Promise<Record<TransactionRow['type'], TypeTotals>> {
+  const rows = await db.getAllAsync<{ type: TransactionRow['type']; amount_minor: number; home_minor: number }>(
+    `SELECT type, SUM(amount_minor) as amount_minor, SUM(home_minor) as home_minor
+     FROM transactions WHERE occurred_at >= ? AND occurred_at <= ? GROUP BY type`,
+    [startDate, endDateInclusive]
+  );
+  const totals: Record<TransactionRow['type'], TypeTotals> = {
+    expense: { amountMinor: 0, homeMinor: 0 },
+    income: { amountMinor: 0, homeMinor: 0 },
+  };
+  for (const row of rows) {
+    totals[row.type] = { amountMinor: row.amount_minor, homeMinor: row.home_minor };
+  }
+  return totals;
+}
+
 export async function sumExpenseMinorByCategoryInRange(
   db: SQLiteDatabase,
   categoryId: string,

@@ -39,3 +39,18 @@ export function convertMinor(amountMinor: number, fromCurrency: SupportedCurrenc
   const toMajor = fromMajor * rate;
   return toMinorUnits(toMajor, toCurrency);
 }
+
+// The effective major-unit rate behind a set of transactions: total home
+// amount / total display amount (e.g. 1 USD = 149.8 JPY). Null when there is
+// nothing to average.
+export function computeAverageRate(
+  amountMinor: number,
+  fromCurrency: SupportedCurrency,
+  homeMinor: number,
+  toCurrency: SupportedCurrency
+): number | null {
+  if (amountMinor === 0) {
+    return null;
+  }
+  return toMajorUnits(homeMinor, toCurrency) / toMajorUnits(amountMinor, fromCurrency);
+}

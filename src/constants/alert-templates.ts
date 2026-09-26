@@ -1,16 +1,9 @@
 import type { SupportedCurrency } from '@/constants/currencies';
 import { formatMinor } from '@/domain/money';
-import type { CategoryBudgetWarning, PaceProjection, PeriodComparison, RemainingPerDay } from '@/domain/alerts';
+import type { CategoryBudgetWarning, PeriodComparison } from '@/domain/alerts';
 
-// Copy for the four rule-based alerts (SPEC.md 3.4). Each returns null when
+// Copy for the rule-based alerts (SPEC.md 3.4). Each returns null when
 // the alert shouldn't be shown, so callers can just filter(Boolean) a list.
-
-export function paceProjectionMessage(projection: PaceProjection, currency: SupportedCurrency): string | null {
-  if (projection.overageMinor <= 0) {
-    return null;
-  }
-  return `At this pace, you'll go ${formatMinor(projection.overageMinor, currency)} over budget by month end.`;
-}
 
 export function categoryBudgetWarningMessage(
   categoryName: string,
@@ -21,10 +14,6 @@ export function categoryBudgetWarningMessage(
   }
   const percent = Math.round(warning.ratio * 100);
   return `${categoryName} has reached ${percent}% of its budget.`;
-}
-
-export function remainingPerDayMessage(remaining: RemainingPerDay, currency: SupportedCurrency): string {
-  return `${formatMinor(remaining.remainingMinor, currency)} left over ${remaining.days} day${remaining.days === 1 ? '' : 's'} — that's ${formatMinor(remaining.perDayMinor, currency)} a day.`;
 }
 
 export function vsLastPeriodMessage(comparison: PeriodComparison, currency: SupportedCurrency): string | null {

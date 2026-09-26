@@ -24,10 +24,9 @@ export type CurrencyPair = {
   label: string;
 };
 
-export const CURRENCY_PAIRS: readonly CurrencyPair[] = [
-  { display: 'USD', home: 'JPY', label: 'USD → JPY' },
-  { display: 'JPY', home: 'USD', label: 'JPY → USD' },
-];
+// Only USD -> JPY is offered: spending happens in USD and is viewed in JPY.
+// JPY is still a SupportedCurrency (it is the home currency).
+export const CURRENCY_PAIRS: readonly CurrencyPair[] = [{ display: 'USD', home: 'JPY', label: 'USD → JPY' }];
 
 export function isSupportedCurrency(value: string): value is SupportedCurrency {
   return (SUPPORTED_CURRENCIES as readonly string[]).includes(value);

@@ -1,4 +1,4 @@
-import { convertMinor, formatDualCurrency, formatMinor, toMajorUnits, toMinorUnits } from '../money';
+import { computeAverageRate, convertMinor, formatDualCurrency, formatMinor, toMajorUnits, toMinorUnits } from '../money';
 
 describe('toMinorUnits / toMajorUnits', () => {
   it('converts USD major to minor (2 decimal exponent)', () => {
@@ -54,5 +54,16 @@ describe('convertMinor across differing exponents', () => {
 
   it('JPY -> USD rises from exponent 0 to 2', () => {
     expect(convertMinor(1860, 'JPY', 'USD', 1 / 150)).toBe(1240);
+  });
+});
+
+describe('computeAverageRate', () => {
+  it('weights each transaction by its amount', () => {
+    // $10 at 150 (¥1,500) + $30 at 146 (¥4,380) = ¥5,880 / $40 = 147.
+    expect(computeAverageRate(4000, 'USD', 5880, 'JPY')).toBe(147);
+  });
+
+  it('returns null when there are no transactions', () => {
+    expect(computeAverageRate(0, 'USD', 0, 'JPY')).toBeNull();
   });
 });
