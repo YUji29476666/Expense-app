@@ -41,6 +41,7 @@ export type ParseReceiptResponse = { ok: true; receipt: ParsedReceipt } | { ok: 
 export type ParseReceiptError =
   | 'method_not_allowed'
   | 'payload_too_large'
+  | 'rate_limited'
   | 'invalid_request'
   | 'not_a_transaction'
   | 'model_error'

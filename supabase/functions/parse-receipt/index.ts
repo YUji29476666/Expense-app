@@ -7,6 +7,8 @@
 //   and nothing about the image is logged.
 // - Callers must send the project's anon key (verify_jwt in config.toml),
 //   which Supabase checks before this code runs.
+// - Bursts are throttled per client and per instance (rate-limit.ts). The
+//   hard spending cap is the Gemini quota/budget in Google Cloud.
 
 import {
   buildPrompt,
@@ -17,9 +19,13 @@ import {
   type ParseReceiptError,
   type ParseReceiptResponse,
 } from './receipt.ts';
+import { clientIdFromHeaders, RateLimiter } from './rate-limit.ts';
 
 const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.1-flash-lite';
 const GEMINI_TIMEOUT_MS = 25_000;
+
+// Module scope so it persists across requests served by this instance.
+const rateLimiter = new RateLimiter();
 
 type GeminiPart = { text?: string; thought?: boolean };
 type GeminiResponse = {
@@ -34,8 +40,12 @@ function respond(body: ParseReceiptResponse, status: number): Response {
   });
 }
 
-function fail(error: ParseReceiptError, status: number): Response {
-  return respond({ ok: false, error }, status);
+function fail(error: ParseReceiptError, status: number, headers: Record<string, string> = {}): Response {
+  const response = respond({ ok: false, error }, status);
+  for (const [name, value] of Object.entries(headers)) {
+    response.headers.set(name, value);
+  }
+  return response;
 }
 
 Deno.serve(async (req) => {
@@ -47,6 +57,12 @@ Deno.serve(async (req) => {
   if (!apiKey) {
     console.error('GEMINI_API_KEY is not set');
     return fail('server_misconfigured', 500);
+  }
+
+  // Before reading the body, so throttled callers cost nothing.
+  const decision = rateLimiter.check(clientIdFromHeaders(req.headers), Date.now());
+  if (!decision.allowed) {
+    return fail('rate_limited', 429, { 'Retry-After': String(decision.retryAfterSeconds) });
   }
 
   // Reject oversized uploads before buffering them.

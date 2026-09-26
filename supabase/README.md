@@ -19,6 +19,21 @@ supabase functions deploy parse-receipt
 - Logs (token counts and errors only; images are never logged):
   Dashboard → Edge Functions → parse-receipt → Logs.
 
+## Abuse and cost limits
+
+The anon key ships inside the app, so anyone who extracts it can call the function.
+Three layers keep Gemini spend bounded:
+
+1. **Google Cloud quota and budget (hard cap)** on the API key's project:
+   APIs & Services → Generative Language API → Quotas (requests per day), and
+   Billing → Budgets & alerts.
+2. **In-function throttling** (`rate-limit.ts`): 5 requests/minute and 30/hour per
+   client IP, 60/minute per instance; over the limit returns 429 with `Retry-After`.
+   Best-effort only: counters live in memory and reset when an instance is recycled.
+3. **Monthly cap in the app** (Settings), which limits honest use from the app itself.
+
+Request size is also capped (~3 MB image) before anything reaches Gemini.
+
 ## Test
 
 Pure request/response logic lives in `functions/parse-receipt/receipt.ts` and is
