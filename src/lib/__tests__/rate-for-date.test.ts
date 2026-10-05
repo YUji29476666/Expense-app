@@ -41,7 +41,7 @@ describe('resolveRateForDate', () => {
     const result = await resolveRateForDate({ ...BASE, occurredAtIso: '2026-09-20' });
     // A Sunday resolves to the previous business day's rate.
     expect(result).toEqual({ ok: true, rate: 147.2, source: 'historical', rateDate: '2026-09-18' });
-    expect(fetchMock).toHaveBeenCalledWith('https://api.frankfurter.app/2026-09-20?from=USD&to=JPY');
+    expect(fetchMock).toHaveBeenCalledWith('https://api.frankfurter.dev/v1/2026-09-20?from=USD&to=JPY');
   });
 
   it('does not need a current rate for a past date', async () => {

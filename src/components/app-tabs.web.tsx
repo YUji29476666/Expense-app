@@ -18,7 +18,7 @@ export default function AppTabs() {
     <Tabs style={styles.root}>
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="index" href="/index" asChild>
+          <TabTrigger name="index" href="/" asChild>
             <TabButton>Today</TabButton>
           </TabTrigger>
           <TabTrigger name="transactions" href="/transactions" asChild>

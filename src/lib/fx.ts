@@ -1,5 +1,10 @@
-// SPEC.md 3.3: fetch from frankfurter.app (no API key needed). On failure,
-// fall back to the last-fetched rate and let the caller show its "last
+// SPEC.md 3.3: rates come from frankfurter (no API key needed).
+// api.frankfurter.app now only 302-redirects to api.frankfurter.dev/v1, and
+// browsers block a fetch that hits that cross-origin redirect, so call the
+// new host directly. The response format is the same.
+const FRANKFURTER_BASE_URL = 'https://api.frankfurter.dev/v1';
+
+// On failure, fall back to the last-fetched rate and let the caller show its "last
 // updated" date rather than fabricating a live one.
 export type FetchRateResult = {
   rate: number;
@@ -14,7 +19,7 @@ export async function fetchLatestRate(
 ): Promise<FetchRateResult> {
   try {
     const response = await fetch(
-      `https://api.frankfurter.app/latest?from=${encodeURIComponent(base)}&to=${encodeURIComponent(target)}`
+      `${FRANKFURTER_BASE_URL}/latest?from=${encodeURIComponent(base)}&to=${encodeURIComponent(target)}`
     );
     if (!response.ok) {
       throw new Error(`frankfurter.app returned ${response.status}`);
@@ -54,7 +59,7 @@ export async function fetchRateOnDate(base: string, target: string, isoDate: str
     return cached;
   }
   const response = await fetch(
-    `https://api.frankfurter.app/${isoDate}?from=${encodeURIComponent(base)}&to=${encodeURIComponent(target)}`
+    `${FRANKFURTER_BASE_URL}/${isoDate}?from=${encodeURIComponent(base)}&to=${encodeURIComponent(target)}`
   );
   if (!response.ok) {
     throw new Error(`frankfurter.app returned ${response.status}`);
