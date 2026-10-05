@@ -1,9 +1,8 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { CategoryPicker } from './category-picker';
+import { DateField } from './date-field';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -44,7 +43,6 @@ export function TransactionForm({
   const [merchant, setMerchant] = useState(initialValues.merchant);
   const [note, setNote] = useState(initialValues.note);
   const [occurredAt, setOccurredAt] = useState(initialValues.occurredAt);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [categoryManuallySet, setCategoryManuallySet] = useState(initialValues.categoryId !== null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -143,22 +141,7 @@ export function TransactionForm({
 
       <View style={styles.field}>
         <ThemedText type="smallBold">Date</ThemedText>
-        <Pressable onPress={() => setShowDatePicker(true)}>
-          <ThemedView type="backgroundElement" style={styles.dateButton}>
-            <ThemedText>{format(occurredAt, 'MMM d, yyyy')}</ThemedText>
-          </ThemedView>
-        </Pressable>
-        {showDatePicker && (
-          <DateTimePicker
-            value={occurredAt}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            onValueChange={(_event, date) => {
-              setShowDatePicker(Platform.OS === 'ios');
-              setOccurredAt(date);
-            }}
-          />
-        )}
+        <DateField value={occurredAt} onChange={setOccurredAt} />
       </View>
 
       <Pressable onPress={handleSave} disabled={!canSave}>
@@ -207,12 +190,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingVertical: Spacing.two,
     fontSize: 16,
-  },
-  dateButton: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-    alignSelf: 'flex-start',
   },
   saveButton: {
     paddingVertical: Spacing.three,

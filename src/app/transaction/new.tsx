@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ReceiptReviewBanner } from '@/components/receipt-review-banner';
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +19,7 @@ import { useReceiptScan, type ReceiptSource } from '@/hooks/use-receipt-scan';
 import { fetchRateOnDate } from '@/lib/fx';
 import { chooseRateForSave } from '@/lib/rate-prompt';
 import { describeReceiptApiError } from '@/lib/receipt-api';
+import { Alert } from '@/lib/alert';
 
 function emptyValues(): TransactionFormValues {
   return {

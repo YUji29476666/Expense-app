@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { TransactionForm, type TransactionFormValues } from '@/components/transaction-form';
@@ -12,6 +12,7 @@ import type { TransactionRow } from '@/db/types';
 import { formatISODate } from '@/domain/month-period';
 import { convertMinor, toMajorUnits, toMinorUnits } from '@/domain/money';
 import { chooseRateForSave } from '@/lib/rate-prompt';
+import { Alert } from '@/lib/alert';
 
 export default function EditTransactionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

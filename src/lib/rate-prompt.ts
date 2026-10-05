@@ -1,7 +1,6 @@
-import { Alert } from 'react-native';
-
 import type { SupportedCurrency } from '@/constants/currencies';
 import { resolveRateForDate } from './rate-for-date';
+import { Alert } from '@/lib/alert';
 
 function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
   return new Promise((resolve) => {

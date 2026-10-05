@@ -6,7 +6,7 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -15,8 +15,7 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function AppTabs() {
   return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+    <Tabs style={styles.root}>
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="index" href="/index" asChild>
@@ -33,6 +32,7 @@ export default function AppTabs() {
           </TabTrigger>
         </CustomTabList>
       </TabList>
+      <TabSlot style={styles.slot} />
     </Tabs>
   );
 }
@@ -51,13 +51,21 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
   );
 }
 
+// Below this width the brand label is dropped so the four tabs fit on a phone.
+const SHOW_BRAND_MIN_WIDTH = 520;
+
 export function CustomTabList(props: TabListProps) {
+  const { width } = useWindowDimensions();
+  const isNarrow = width < SHOW_BRAND_MIN_WIDTH;
+
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          myapp
-        </ThemedText>
+    <View {...props} style={[styles.tabListContainer, isNarrow && styles.tabListContainerNarrow]}>
+      <ThemedView type="backgroundElement" style={[styles.innerContainer, isNarrow && styles.innerContainerNarrow]}>
+        {!isNarrow && (
+          <ThemedText type="smallBold" style={styles.brandText}>
+            myapp
+          </ThemedText>
+        )}
 
         {props.children}
       </ThemedView>
@@ -66,8 +74,16 @@ export function CustomTabList(props: TabListProps) {
 }
 
 const styles = StyleSheet.create({
+  // The tab bar sits above the screen in normal flow (not overlaid), so
+  // screen titles are never hidden underneath it.
+  root: {
+    flex: 1,
+    height: '100%',
+  },
+  slot: {
+    flex: 1,
+  },
   tabListContainer: {
-    position: 'absolute',
     width: '100%',
     padding: Spacing.three,
     justifyContent: 'center',
@@ -83,6 +99,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: Spacing.two,
     maxWidth: MaxContentWidth,
+  },
+  tabListContainerNarrow: {
+    padding: Spacing.two,
+  },
+  innerContainerNarrow: {
+    paddingHorizontal: Spacing.two,
+    justifyContent: 'space-between',
+    gap: 0,
   },
   brandText: {
     marginRight: 'auto',
