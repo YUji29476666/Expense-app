@@ -32,3 +32,44 @@ export async function fetchLatestRate(
     throw new Error('No exchange rate available. Check your connection and try again.');
   }
 }
+
+// The reference rate for a past date (SPEC.md 3.3: a transaction entered
+// later must use the rate of the day it happened, not today's). frankfurter
+// returns the last published rate on or before `isoDate` (weekends and
+// holidays fall back to the previous business day) and reports that day as
+// `date`, which is returned as `rateDate`.
+export type RateOnDate = { rate: number; rateDate: string };
+
+// Published rates for past days never change, so they are cached for the
+// app session. Keyed by base/target/requested date.
+const rateOnDateCache = new Map<string, RateOnDate>();
+
+export async function fetchRateOnDate(base: string, target: string, isoDate: string): Promise<RateOnDate> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    throw new Error(`invalid date ${isoDate}`);
+  }
+  const key = `${base}/${target}/${isoDate}`;
+  const cached = rateOnDateCache.get(key);
+  if (cached) {
+    return cached;
+  }
+  const response = await fetch(
+    `https://api.frankfurter.app/${isoDate}?from=${encodeURIComponent(base)}&to=${encodeURIComponent(target)}`
+  );
+  if (!response.ok) {
+    throw new Error(`frankfurter.app returned ${response.status}`);
+  }
+  const data = (await response.json()) as { date?: unknown; rates?: Record<string, unknown> };
+  const rate = data.rates?.[target];
+  if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
+    throw new Error('rate missing from frankfurter.app response');
+  }
+  const result: RateOnDate = { rate, rateDate: typeof data.date === 'string' ? data.date : isoDate };
+  rateOnDateCache.set(key, result);
+  return result;
+}
+
+// Test hook: the cache is module state.
+export function clearRateOnDateCache(): void {
+  rateOnDateCache.clear();
+}

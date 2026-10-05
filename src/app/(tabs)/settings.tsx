@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import benchmarksData from '@/assets/benchmarks.json';
@@ -15,6 +15,7 @@ import { hasAnyTransactions } from '@/db/queries/transactions';
 import type { BenchmarksData } from '@/domain/benchmarks';
 import { toMajorUnits, toMinorUnits } from '@/domain/money';
 import { fetchLatestRate } from '@/lib/fx';
+import { Alert } from '@/lib/alert';
 
 const MONTH_START_DAY_MIN = 1;
 const MONTH_START_DAY_MAX = 28;

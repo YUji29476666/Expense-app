@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { CategoryEditor, type CategoryEditorValues } from '@/components/category-editor';
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +19,7 @@ import { categoryHasTransactions } from '@/db/queries/transactions';
 import type { CategoryRow } from '@/db/types';
 import { formatMinor, toMajorUnits, toMinorUnits } from '@/domain/money';
 import { useCategories } from '@/hooks/use-categories';
+import { Alert } from '@/lib/alert';
 
 export default function CategoryManagementScreen() {
   const db = useSQLiteContext();

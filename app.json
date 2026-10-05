@@ -34,7 +34,14 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to your photos to read receipts and payment screenshots.",
+          "cameraPermission": "Allow camera access to photograph receipts."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

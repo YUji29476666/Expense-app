@@ -1,28 +1,34 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import benchmarksData from '@/assets/benchmarks.json';
 import { BenchmarkComparison } from '@/components/benchmark-comparison';
 import { CategoryBreakdownChart } from '@/components/category-breakdown-chart';
+import { PeriodHistoryList } from '@/components/period-history-list';
+import { PeriodNavigator } from '@/components/period-navigator';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { TrendChart } from '@/components/trend-chart';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useSettings } from '@/context/settings-context';
 import { findBenchmarkRegion, type BenchmarksData } from '@/domain/benchmarks';
-import { formatPeriodLabel } from '@/domain/month-period';
 import { computeAverageRate, formatMinor } from '@/domain/money';
-import { useAnalytics } from '@/hooks/use-analytics';
+import { HISTORY_PERIODS, useAnalytics } from '@/hooks/use-analytics';
 import { useCategories } from '@/hooks/use-categories';
 
 const benchmarks = benchmarksData as BenchmarksData;
+// How far back the ‹ button goes (the list shows the latest HISTORY_PERIODS).
+const MAX_PERIOD_OFFSET = 36;
 
 export default function AnalyticsScreen() {
   const safeAreaInsets = useSafeAreaInsets();
   const { settings } = useSettings();
   const { categories } = useCategories({ includeArchived: true });
-  const analytics = useAnalytics();
+  // 0 = current budget period; every card below follows this selection.
+  const [periodOffset, setPeriodOffset] = useState(0);
+  const analytics = useAnalytics(periodOffset);
 
   if (!settings || analytics.isLoading) {
     return (
@@ -60,13 +66,16 @@ export default function AnalyticsScreen() {
         },
       ]}>
       <ThemedText type="subtitle">Analytics</ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {formatPeriodLabel(analytics.currentPeriod)}
-      </ThemedText>
+      <PeriodNavigator
+        period={analytics.selectedPeriod}
+        offset={periodOffset}
+        maxOffset={MAX_PERIOD_OFFSET}
+        onChange={setPeriodOffset}
+      />
 
       <ThemedView type="backgroundElement" style={styles.netCard}>
         <ThemedText type="small" themeColor="textSecondary">
-          Income vs. expense this period
+          Income vs. expense
         </ThemedText>
         <ThemedText type="title" themeColor={netMinor >= 0 ? 'allowanceGood' : 'allowanceOver'} style={styles.netAmount}>
           {netMinor >= 0 ? '+' : ''}
@@ -84,7 +93,7 @@ export default function AnalyticsScreen() {
 
       <ThemedView type="backgroundElement" style={styles.netCard}>
         <ThemedText type="small" themeColor="textSecondary">
-          In {settings.home_currency} this period
+          In {settings.home_currency}
         </ThemedText>
         <ThemedText
           type="title"
@@ -123,8 +132,18 @@ export default function AnalyticsScreen() {
       </View>
 
       <View style={styles.section}>
-        <ThemedText type="smallBold">Last 6 periods</ThemedText>
+        <ThemedText type="smallBold">Expense trend (6 periods up to the selected one)</ThemedText>
         <TrendChart trend={analytics.trend} currency={settings.display_currency} />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText type="smallBold">Past periods (last {HISTORY_PERIODS})</ThemedText>
+        <PeriodHistoryList
+          history={analytics.history}
+          selectedOffset={periodOffset}
+          currency={settings.display_currency}
+          onSelect={setPeriodOffset}
+        />
       </View>
 
       <BenchmarkComparison
